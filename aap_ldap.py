@@ -152,7 +152,7 @@ def listgroup(ldap_uri, ldap_basedn, ldap_binddn, ldap_bindpw):
         print("Your bind DN or password is incorrect.")
         sys.exit(1)
     except ldap.LDAPError as e:
-        print("LDAPError: %s." % e)
+        print(f"LDAPError: {e}.")
         sys.exit(1)
 
     try:
@@ -167,45 +167,39 @@ def listgroup(ldap_uri, ldap_basedn, ldap_binddn, ldap_bindpw):
             result_type, result_data = conn.result(ldap_result, 0)
             if (result_data == []):
                 break
-            else:
-                if result_type == ldap.RES_SEARCH_ENTRY:
-                    groupname = result_data[0][1]['cn'][0].decode("utf-8")
-                    try:
-                        memberlist = result_data[0][1]['member']
-                    except KeyError:
-                        memberlist = []
+            if result_type == ldap.RES_SEARCH_ENTRY:
+                groupname = result_data[0][1]['cn'][0].decode("utf-8")
+                try:
+                    memberlist = result_data[0][1]['member']
+                except KeyError:
+                    memberlist = []
 
-                    # If the RDN of a hostgroup member is "cn",
-                    # then it's a nested hostgroup.
-                    #
-                    # If the RDN of a hostgroup member is "fqdn",
-                    # then it's a host.
+                # If the RDN of a hostgroup member is "cn",
+                # then it's a nested hostgroup.
+                #
+                # If the RDN of a hostgroup member is "fqdn",
+                # then it's a host.
 
-                    hosts = []
-                    children = []
-                    for member in memberlist:
-                        memberdn = ldap.dn.str2dn(member)
-                        if (memberdn[0][0][0] == "cn"):
-                            children.append(memberdn[0][0][1])
-                        if (memberdn[0][0][0] == "fqdn"):
-                            hosts.append(memberdn[0][0][1])
+                hosts = []
+                children = []
+                for member in memberlist:
+                    memberdn = ldap.dn.str2dn(member)
+                    if (memberdn[0][0][0] == "cn"):
+                        children.append(memberdn[0][0][1])
+                    if (memberdn[0][0][0] == "fqdn"):
+                        hosts.append(memberdn[0][0][1])
 
-                    if (children != []):
-                        hostgroup[groupname] = {
-                            'hosts': hosts,
-                            'children': children
-                        }
-                    else:
-                        hostgroup[groupname] = {
-                            'hosts': hosts
-                        }
-
+                hostgroup[groupname] = (
+                    {'hosts': hosts, 'children': children}
+                    if (children != [])
+                    else {'hosts': hosts}
+                )
         # assume that we have no hostvars
         hostgroup["_meta"] = {'hostvars': {}}
         print(json.dumps(hostgroup))
 
     except ldap.LDAPError as e:
-        print("LDAPError: %s." % e)
+        print(f"LDAPError: {e}.")
     finally:
         conn.unbind_s()
 
@@ -228,5 +222,5 @@ if __name__ == '__main__':
     elif len(sys.argv) == 3 and (sys.argv[1] == '--host'):
         listhost(sys.argv[2])
     else:
-        print("Usage: %s --list or --host <hostname>" % sys.argv[0])
+        print(f"Usage: {sys.argv[0]} --list or --host <hostname>")
         sys.exit(1)
